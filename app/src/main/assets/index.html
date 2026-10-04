@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Turbo Racing Professional 2D</title>
+    <title>Turbo Racing Pro 2D Multi</title>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; margin: 0; padding: 0; }
         body { overflow: hidden; background: #1a1a1a; font-family: sans-serif; }
@@ -38,10 +38,10 @@
 
     <div id="menu">
         <div class="card">
-            <h2 style="margin-bottom: 12px;">TURBO RACING PRO 2D</h2>
+            <h2 style="margin-bottom: 12px;">TURBO RACING VERTICAL</h2>
             <label>Nombre Piloto:</label>
             <input type="text" id="playerName" value="Piloto 1" maxlength="12">
-            <button id="startBtn">INICIAR CARRERA (20 KM)</button>
+            <button id="startBtn">INICIAR CARRERA</button>
             <button id="btBtn" class="btn-bt">MULTIJUGADOR BLUETOOTH</button>
         </div>
     </div>
@@ -89,42 +89,37 @@
         let audioCtx, engineOsc, engineGain;
         let raceStarted = false, countdownValue = 5;
         let finishedCars = [];
+        let isMultiplayerBT = false;
 
-        // Ancho de Pista de 4 vías
-        const TRACK_WIDTH = 420; 
-        const LANE_WIDTH = TRACK_WIDTH / 4;
+        // Dimensiones de 4 vías iguales
+        const LANE_WIDTH = 90;
+        const TRACK_WIDTH = LANE_WIDTH * 4; 
+        const ROAD_X = 2000;
 
-        // Pista Gran Circuito Escala 20 km
-        const trackPoints = [
-            {x: 2000, y: 2000},
-            {x: 12000, y: 2000},
-            {x: 18000, y: 6000},
-            {x: 18000, y: 14000},
-            {x: 10000, y: 18000},
-            {x: 4000, y: 14000},
-            {x: 2000, y: 8000}
-        ];
+        // Tramo Vertical
+        const START_Y = 5000;
+        const GOAL_Y = -5000;
 
-        // Zona de Parqueo
-        const parkingZone = { x: 2000 - TRACK_WIDTH / 2 - 250, y: 1600 };
+        // Zona de Parqueo tras la meta
+        const parkingZone = { x: ROAD_X + TRACK_WIDTH / 2 + 180, y: GOAL_Y - 400 };
 
-        // Autos Participantes
+        // Autos alineados en los 4 carriles detrás de la línea de salida
         const cars = [
-            { id: 0, name: "Piloto 1", x: 2000 - 130, y: 2200, angle: 0, speed: 0, color: '#ff2222', isAI: false, finished: false, parkStep: 0 },
-            { id: 1, name: "IA Alfa", x: 2000 - 45, y: 2250, angle: 0, speed: 0, color: '#00ffff', isAI: true, progress: 0.005, finished: false, parkStep: 0 },
-            { id: 2, name: "IA Beta", x: 2000 + 45, y: 2300, angle: 0, speed: 0, color: '#ffcc00', isAI: true, progress: 0.003, finished: false, parkStep: 0 },
-            { id: 3, name: "IA Gamma", x: 2000 + 130, y: 2350, angle: 0, speed: 0, color: '#00ff66', isAI: true, progress: 0.001, finished: false, parkStep: 0 }
+            { id: 0, name: "Piloto 1", x: ROAD_X - 1.5 * LANE_WIDTH, y: START_Y + 100, angle: 0, speed: 0, color: '#ff2222', isAI: false, finished: false },
+            { id: 1, name: "Jugador 2", x: ROAD_X - 0.5 * LANE_WIDTH, y: START_Y + 100, angle: 0, speed: 0, color: '#00ffff', isAI: true,  finished: false },
+            { id: 2, name: "Jugador 3", x: ROAD_X + 0.5 * LANE_WIDTH, y: START_Y + 100, angle: 0, speed: 0, color: '#ffcc00', isAI: true,  finished: false },
+            { id: 3, name: "Jugador 4", x: ROAD_X + 1.5 * LANE_WIDTH, y: START_Y + 100, angle: 0, speed: 0, color: '#00ff66', isAI: true,  finished: false }
         ];
 
         const player = cars[0];
 
-        // Generar Vegetación Entorno
+        // Arboles y vegetación
         const trees = [];
-        for (let i = 0; i < 400; i++) {
+        for (let i = 0; i < 250; i++) {
             trees.push({
-                x: Math.random() * 22000 - 2000,
-                y: Math.random() * 22000 - 2000,
-                size: 30 + Math.random() * 20
+                x: (Math.random() > 0.5 ? ROAD_X - TRACK_WIDTH/2 - 150 - Math.random()*500 : ROAD_X + TRACK_WIDTH/2 + 150 + Math.random()*500),
+                y: START_Y + 500 - Math.random() * (START_Y - GOAL_Y + 2000),
+                size: 25 + Math.random() * 20
             });
         }
 
@@ -148,13 +143,24 @@
             } catch(e) {}
         }
 
+        function stopAudio() {
+            if (engineGain && audioCtx) {
+                engineGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
+            }
+        }
+
         function startGame(isBt) {
+            isMultiplayerBT = isBt;
             player.name = document.getElementById('playerName').value || "Piloto 1";
             document.getElementById('hudName').innerText = player.name + (isBt ? " [BT]" : "");
             document.getElementById('menu').style.display = 'none';
             document.getElementById('hud').style.display = 'block';
             document.getElementById('speedometer').style.display = 'block';
             document.getElementById('controls').style.display = 'flex';
+
+            if (isBt && window.AndroidBluetooth) {
+                window.AndroidBluetooth.connectBluetooth();
+            }
 
             initAudio();
             setupControls();
@@ -193,37 +199,16 @@
             bind('btnReverse', v => isReverse = v);
         }
 
-        function distanceToSegment(p, a, b) {
-            const l2 = (b.x - a.x)**2 + (b.y - a.y)**2;
-            if (l2 === 0) return Math.hypot(p.x - a.x, p.y - a.y);
-            let t = ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / l2;
-            t = Math.max(0, Math.min(1, t));
-            return Math.hypot(p.x - (a.x + t * (b.x - a.x)), p.y - (a.y + t * (b.y - a.y)));
-        }
-
-        function getMinDistanceToTrack(car) {
-            let minD = Infinity;
-            for (let i = 0; i < trackPoints.length; i++) {
-                const a = trackPoints[i];
-                const b = trackPoints[(i + 1) % trackPoints.length];
-                minD = Math.min(minD, distanceToSegment(car, a, b));
-            }
-            return minD;
-        }
-
         function checkFenceCollision(car) {
-            const maxAllowedDist = (TRACK_WIDTH / 2) - 15;
-            const dist = getMinDistanceToTrack(car);
+            const leftBoundary = ROAD_X - TRACK_WIDTH / 2 + 15;
+            const rightBoundary = ROAD_X + TRACK_WIDTH / 2 - 15;
 
-            if (dist > maxAllowedDist) {
-                // Roce / Choque con valla
-                if (!car.isAI) speed *= 0.3; // Reduce la velocidad al rozar la valla
-                else car.speed *= 0.3;
-
-                // Empuje de rebote hacia adentro
-                const angleToCenter = Math.atan2(trackPoints[0].y - car.y, trackPoints[0].x - car.x);
-                car.x += Math.cos(angleToCenter) * 8;
-                car.y += Math.sin(angleToCenter) * 8;
+            if (car.x < leftBoundary) {
+                car.x = leftBoundary;
+                if (!car.isAI || car === player) speed *= 0.4;
+            } else if (car.x > rightBoundary && car.y > GOAL_Y) {
+                car.x = rightBoundary;
+                if (!car.isAI || car === player) speed *= 0.4;
             }
         }
 
@@ -232,19 +217,15 @@
             ctx.translate(c.x, c.y);
             ctx.rotate(c.angle);
 
-            // Sombra
             ctx.fillStyle = 'rgba(0,0,0,0.3)';
             ctx.fillRect(-12, -20, 28, 48);
 
-            // Carrocería
             ctx.fillStyle = c.color;
             ctx.fillRect(-14, -24, 28, 48);
 
-            // Techo / Parabrisas
             ctx.fillStyle = '#111';
             ctx.fillRect(-10, -10, 20, 20);
 
-            // Ruedas
             ctx.fillStyle = '#0a0a0a';
             ctx.fillRect(-17, -18, 5, 12);
             ctx.fillRect(12, -18, 5, 12);
@@ -255,69 +236,50 @@
         }
 
         function drawTrack() {
-            // Vallas de Seguridad Exteriores
-            ctx.lineWidth = TRACK_WIDTH + 30;
-            ctx.strokeStyle = '#c1121f';
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.beginPath();
-            ctx.moveTo(trackPoints[0].x, trackPoints[0].y);
-            for (let i = 1; i < trackPoints.length; i++) ctx.lineTo(trackPoints[i].x, trackPoints[i].y);
-            ctx.closePath();
-            ctx.stroke();
+            ctx.fillStyle = '#c1121f';
+            ctx.fillRect(ROAD_X - TRACK_WIDTH/2 - 15, GOAL_Y - 800, 15, START_Y - GOAL_Y + 1600);
+            ctx.fillRect(ROAD_X + TRACK_WIDTH/2, GOAL_Y - 800, 15, START_Y - GOAL_Y + 1600);
 
-            // Pista Principal de Asfalto (4 Vías)
-            ctx.lineWidth = TRACK_WIDTH;
-            ctx.strokeStyle = '#2b2d42';
-            ctx.stroke();
+            ctx.fillStyle = '#2b2d42';
+            ctx.fillRect(ROAD_X - TRACK_WIDTH/2, GOAL_Y - 800, TRACK_WIDTH, START_Y - GOAL_Y + 1600);
 
-            // Divisiones de Carriles (4 Vías)
-            ctx.lineWidth = 4;
             ctx.strokeStyle = '#ffffff';
-            ctx.setLineDash([25, 25]);
+            ctx.lineWidth = 4;
+            ctx.setLineDash([30, 30]);
 
-            [-TRACK_WIDTH/4, 0, TRACK_WIDTH/4].forEach(offset => {
+            for (let i = 1; i < 4; i++) {
+                const laneX = ROAD_X - TRACK_WIDTH/2 + i * LANE_WIDTH;
                 ctx.beginPath();
-                ctx.moveTo(trackPoints[0].x + offset, trackPoints[0].y);
-                for (let i = 1; i < trackPoints.length; i++) ctx.lineTo(trackPoints[i].x + offset, trackPoints[i].y + offset);
-                ctx.closePath();
+                ctx.moveTo(laneX, START_Y + 500);
+                ctx.lineTo(laneX, GOAL_Y - 800);
                 ctx.stroke();
-            });
+            }
             ctx.setLineDash([]);
 
-            // Marcador de Salida "GO"
-            ctx.save();
-            ctx.translate(trackPoints[0].x, trackPoints[0].y + 200);
             ctx.fillStyle = '#ffeb3b';
-            ctx.font = 'bold 42px sans-serif';
+            ctx.fillRect(ROAD_X - TRACK_WIDTH/2, START_Y, TRACK_WIDTH, 12);
+            ctx.font = 'bold 36px sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText("--- START / GO ---", 0, 0);
-            ctx.restore();
+            ctx.fillText("--- START / GO ---", ROAD_X, START_Y + 60);
 
-            // Marcador de Meta "GOAL"
-            ctx.save();
-            ctx.translate(trackPoints[0].x, trackPoints[0].y - 100);
             ctx.fillStyle = '#00ffcc';
-            ctx.font = 'bold 48px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText("=== FINISH / GOAL ===", 0, 0);
-            ctx.restore();
+            ctx.fillRect(ROAD_X - TRACK_WIDTH/2, GOAL_Y, TRACK_WIDTH, 16);
+            ctx.font = 'bold 40px sans-serif';
+            ctx.fillText("=== FINISH / GOAL ===", ROAD_X, GOAL_Y - 40);
 
-            // Zona de Parqueo
             ctx.fillStyle = '#333';
-            ctx.fillRect(parkingZone.x - 100, parkingZone.y - 150, 200, 300);
+            ctx.fillRect(parkingZone.x - 80, parkingZone.y - 120, 160, 240);
             ctx.strokeStyle = '#ffb703';
-            ctx.lineWidth = 6;
-            ctx.strokeRect(parkingZone.x - 100, parkingZone.y - 150, 200, 300);
+            ctx.lineWidth = 4;
+            ctx.strokeRect(parkingZone.x - 80, parkingZone.y - 120, 160, 240);
             ctx.fillStyle = '#fff';
-            ctx.font = 'bold 20px sans-serif';
-            ctx.fillText("PARKING", parkingZone.x - 40, parkingZone.y - 120);
+            ctx.font = 'bold 18px sans-serif';
+            ctx.fillText("PARKING", parkingZone.x, parkingZone.y - 90);
         }
 
         function drawEnvironment() {
             trees.forEach(t => {
-                // Dibujar solo si está dentro del campo visual
-                if (Math.abs(t.x - player.x) < canvas.width && Math.abs(t.y - player.y) < canvas.height) {
+                if (Math.abs(t.y - player.y) < canvas.height * 1.2) {
                     ctx.save();
                     ctx.translate(t.x, t.y);
                     ctx.fillStyle = '#2d6a4f';
@@ -331,18 +293,42 @@
 
         function updateAutoParking(c, index) {
             const targetX = parkingZone.x;
-            const targetY = parkingZone.y + (index * 60) - 80;
+            const targetY = parkingZone.y - 50 + (index * 55);
 
             const dx = targetX - c.x;
             const dy = targetY - c.y;
             const dist = Math.hypot(dx, dy);
 
-            if (dist > 10) {
+            if (dist > 8) {
                 c.angle = Math.atan2(dx, -dy);
                 c.x += Math.sin(c.angle) * 3;
                 c.y -= Math.cos(c.angle) * 3;
             } else {
                 c.speed = 0;
+                if (c === player) stopAudio();
+            }
+        }
+
+        function onBluetoothDataReceived(jsonString) {
+            try {
+                const data = JSON.parse(jsonString);
+                if (data.id && cars[data.id]) {
+                    cars[data.id].x = data.x;
+                    cars[data.id].y = data.y;
+                    cars[data.id].angle = data.angle;
+                }
+            } catch(e) {}
+        }
+
+        function sendBluetoothPosition() {
+            if (isMultiplayerBT && window.AndroidBluetooth) {
+                const packet = JSON.stringify({
+                    id: player.id,
+                    x: player.x,
+                    y: player.y,
+                    angle: player.angle
+                });
+                window.AndroidBluetooth.sendData(packet);
             }
         }
 
@@ -368,9 +354,9 @@
                 player.y -= Math.cos(player.angle) * (speed / 15);
 
                 checkFenceCollision(player);
+                sendBluetoothPosition();
 
-                // Detección de paso de Meta para el jugador
-                if (player.y <= trackPoints[0].y - 100 && player.x > trackPoints[0].x - TRACK_WIDTH/2 && player.x < trackPoints[0].x + TRACK_WIDTH/2) {
+                if (player.y <= GOAL_Y) {
                     player.finished = true;
                     finishedCars.push(player);
                 }
@@ -378,12 +364,11 @@
 
             document.getElementById('speedVal').innerText = Math.round(Math.abs(speed));
 
-            if (engineOsc && audioCtx) {
+            if (engineOsc && audioCtx && !player.finished) {
                 const engineFreq = 40 + (Math.abs(speed) / maxSpeed) * 220;
                 engineOsc.frequency.setTargetAtTime(engineFreq, audioCtx.currentTime, 0.1);
             }
 
-            // MANTENER AL JUGADOR SIEMPRE EN EL CENTRO EXACTO DE LA PANTALLA
             ctx.save();
             ctx.fillStyle = '#52b788';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -393,28 +378,19 @@
             drawTrack();
             drawEnvironment();
 
-            // Mover y actualizar Autos IA
-            cars.forEach((c, i) => {
-                if (c.isAI && raceStarted && !c.finished) {
-                    c.progress = (c.progress + 0.00025) % 1;
-                    const numP = trackPoints.length;
-                    const idx = Math.floor(c.progress * numP) % numP;
-                    const nextIdx = (idx + 1) % numP;
-                    const p1 = trackPoints[idx];
-                    const p2 = trackPoints[nextIdx];
-                    const localT = (c.progress * numP) % 1;
+            cars.forEach((c) => {
+                if (c !== player && raceStarted && !c.finished) {
+                    if (!isMultiplayerBT && c.isAI) {
+                        c.y -= 10.5;
+                    }
+                    checkFenceCollision(c);
 
-                    c.x = p1.x + (p2.x - p1.x) * localT;
-                    c.y = p1.y + (p2.y - p1.y) * localT;
-                    c.angle = Math.atan2(p2.x - p1.x, -(p2.y - p1.y));
-
-                    if (c.y <= trackPoints[0].y - 100 && c.progress > 0.95) {
+                    if (c.y <= GOAL_Y) {
                         c.finished = true;
                         finishedCars.push(c);
                     }
                 }
 
-                // Si terminó la carrera, va al parqueo automáticamente
                 if (c.finished) {
                     const parkIdx = finishedCars.indexOf(c);
                     updateAutoParking(c, parkIdx);
@@ -425,7 +401,6 @@
 
             ctx.restore();
 
-            // Finalizar Carrera cuando todos cruzan
             if (finishedCars.length === cars.length && document.getElementById('resultsModal').style.display !== 'flex') {
                 showResults();
             }
