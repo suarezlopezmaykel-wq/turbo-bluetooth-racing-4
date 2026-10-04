@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Turbo Racing 3D</title>
+    <style>
+        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+        body { margin: 0; padding: 0; overflow: hidden; background: #111; font-family: sans-serif; }
+        #menu { position: absolute; width: 100%; height: 100%; background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; color: white; }
+        .card { background: rgba(255,255,255,0.1); padding: 20px; border-radius: 15px; width: 90%; max-width: 480px; text-align: center; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); }
+        input, select, button { width: 100%; padding: 10px; margin: 6px 0; border-radius: 8px; border: none; font-size: 15px; }
+        input { background: rgba(255,255,255,0.9); }
+        button { background: #ff4b2b; color: white; font-weight: bold; font-size: 16px; cursor: pointer; }
+        .btn-bt { background: #0088ff; margin-top: 4px; }
+        #hud { position: absolute; top: 12px; left: 15px; color: white; font-size: 16px; font-weight: bold; text-shadow: 2px 2px 4px #000; z-index: 10; display: none; }
+        #speedometer { position: absolute; top: 12px; right: 15px; color: #00ffff; font-size: 24px; font-weight: bold; text-shadow: 2px 2px 4px #000; z-index: 10; display: none; }
+        .controls-container { position: absolute; bottom: 15px; width: 100%; display: none; justify-content: space-between; padding: 0 20px; z-index: 10; }
+        .btn-group { display: flex; gap: 12px; }
+        .btn-vertical { display: flex; flex-direction: column; gap: 10px; }
+        .btn { width: 65px; height: 65px; background: rgba(255, 255, 255, 0.25); border: 2px solid rgba(255, 255, 255, 0.7); border-radius: 50%; color: white; font-size: 26px; display: flex; align-items: center; justify-content: center; touch-action: manipulation; }
+        .btn:active { background: rgba(255, 75, 43, 0.8); }
+        .btn-rev { background: rgba(255, 165, 0, 0.4); font-size: 18px; font-weight: bold; }
+        canvas { display: block; width: 100vw; height: 100vh; }
+    </style>
+</head>
+<body>
+
+    <div id="menu">
+        <div class="card">
+            <h3 style="margin:0 0 10px 0;">TURBO RACING 3D</h3>
+            <label>Nombre Piloto:</label>
+            <input type="text" id="playerName" value="Piloto 1" maxlength="12">
+
+            <label>Pista (1 a 10):</label>
+            <select id="trackSelect">
+                <option value="0">1. Neón Cyberpunk</option>
+                <option value="1">2. Desierto Dorado</option>
+                <option value="2">3. Cañón Helado</option>
+                <option value="3">4. Bosque Esmeralda</option>
+                <option value="4">5. Volcán de Magma</option>
+                <option value="5">6. Costa Tropical</option>
+                <option value="6">7. Pólis Nocturna</option>
+                <option value="7">8. Valle Otoñal</option>
+                <option value="8">9. Cañón Rocoso</option>
+                <option value="9">10. Pista Espacial</option>
+            </select>
+
+            <button id="startBtn">CARRERA INDIVIDUAL</button>
+            <button id="btBtn" class="btn-bt">MULTIJUGADOR BLUETOOTH</button>
+        </div>
+    </div>
+
+    <div id="hud">Piloto: <span id="hudName"></span></div>
+    <div id="speedometer"><span id="speedVal">0</span> km/h</div>
+
+    <div class="controls-container" id="controls">
+        <div class="btn-group">
+            <div class="btn" id="btnLeft">◀</div>
+            <div class="btn" id="btnRight">▶</div>
+        </div>
+        <div class="btn-vertical">
+            <div class="btn" id="btnGas">▲</div>
+            <div class="btn btn-rev" id="btnReverse">R</div>
+            <div class="btn" id="btnBrake">▼</div>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        // --- MOTOR 3D EMBEBIDO (PROYECCIÓN PERSPECTIVA OFFLINE) ---
+        class Micro3DEngine {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+                this.camera = { x: 0, y: 3, z: 7, fov: 300 };
+                this.objects = [];
+            }
+            resize() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+            }
+            project(p) {
+                let cz = p.z - this.camera.z;
+                if (cz >= 0) cz = -0.01;
+                let scale = this.camera.fov / cz;
+                return {
+                    x: this.canvas.width / 2 + (p.x - this.camera.x) * scale,
+                    y: this.canvas.height / 2 - (p.y - this.camera.y) * scale,
+                    scale: Math.abs(scale)
+                };
+            }
+            addBox(x, y, z, w, h, d, color) {
+                let obj = { x, y, z, w, h, d, color };
+                this.objects.push(obj);
+                return obj;
+            }
+            render(bgColor) {
+                this.ctx.fillStyle = bgColor;
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // Dibujar pista en proyección 3D
+                this.ctx.fillStyle = '#222';
+                let p1 = this.project({ x: -12, y: 0, z: this.camera.z - 200 });
+                let p2 = this.project({ x: 12, y: 0, z: this.camera.z - 200 });
+                let p3 = this.project({ x: 12, y: 0, z: this.camera.z + 10 });
+                let p4 = this.project({ x: -12, y: 0, z: this.camera.z + 10 });
+
+                this.ctx.beginPath();
+                this.ctx.moveTo(p1.x, p1.y);
+                this.ctx.lineTo(p2.x, p2.y);
+                this.ctx.lineTo(p3.x, p3.y);
+                this.ctx.lineTo(p4.x, p4.y);
+                this.ctx.closePath();
+                this.ctx.fill();
+
+                // Ordenar objetos por profundidad Z (Far to Near)
+                this.objects.sort((a, b) => a.z - b.z);
+
+                // Renderizar cubos/vehículos en 3D
+                for (let o of this.objects) {
+                    let proj = this.project(o);
+                    let pw = o.w * proj.scale;
+                    let ph = o.h * proj.scale;
+                    if (pw > 0 && ph > 0) {
+                        this.ctx.fillStyle = o.color;
+                        this.ctx.fillRect(proj.x - pw / 2, proj.y - ph, pw, ph);
+                        this.ctx.strokeStyle = '#000';
+                        this.ctx.strokeRect(proj.x - pw / 2, proj.y - ph, pw, ph);
+                    }
+                }
+            }
+        }
+
+        // --- LÓGICA DEL JUEGO Y AUDIO ---
+        let engine, playerCar, cars = [];
+        let speed = 0;
+        const maxSpeed = 180, maxReverseSpeed = -50;
+        let isGas = false, isBrake = false, isReverse = false, isLeft = false, isRight = false;
+        let audioCtx, engineOsc, engineGain;
+
+        const trackColors = [
+            '#00ffff', '#e6c280', '#a6d5e8', '#2e8b57', '#ff4500',
+            '#40e0d0', '#191970', '#d2691e', '#8b4513', '#4b0082'
+        ];
+
+        document.getElementById('startBtn').addEventListener('click', () => startGame(false));
+        document.getElementById('btBtn').addEventListener('click', () => {
+            if (window.AndroidBluetooth) {
+                window.AndroidBluetooth.showToast("Buscando partidas Bluetooth...");
+            }
+            startGame(true);
+        });
+
+        function initAudio() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                engineOsc = audioCtx.createOscillator();
+                engineGain = audioCtx.createGain();
+                engineOsc.type = 'sawtooth';
+                engineOsc.frequency.setValueAtTime(40, audioCtx.currentTime);
+                engineGain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                engineOsc.connect(engineGain);
+                engineGain.connect(audioCtx.destination);
+                engineOsc.start();
+            } catch(e) {}
+        }
+
+        function startGame(isBt) {
+            const name = document.getElementById('playerName').value;
+            const trackIdx = parseInt(document.getElementById('trackSelect').value);
+
+            document.getElementById('hudName').innerText = name + (isBt ? " [BT]" : "");
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('hud').style.display = 'block';
+            document.getElementById('speedometer').style.display = 'block';
+            document.getElementById('controls').style.display = 'flex';
+
+            initAudio();
+            initGame(trackIdx);
+        }
+
+        function initGame(trackIdx) {
+            const canvas = document.getElementById('gameCanvas');
+            engine = new Micro3DEngine(canvas);
+            engine.trackBg = trackColors[trackIdx];
+
+            const startPositions = [{ x: -3, z: -5 }, { x: 3, z: -5 }, { x: -3, z: -15 }, { x: 3, z: -15 }];
+            const carColors = ['#ff4b2b', '#00ffff', '#ffd700', '#00ff7f'];
+
+            for (let i = 0; i < 4; i++) {
+                let car = engine.addBox(startPositions[i].x, 0, startPositions[i].z, 1.8, 1.0, 3.5, carColors[i]);
+                cars.push(car);
+            }
+
+            playerCar = cars[0];
+            setupControls();
+            animate();
+        }
+
+        function setupControls() {
+            const bindTouch = (id, setVar) => {
+                const el = document.getElementById(id);
+                el.addEventListener('touchstart', (e) => { e.preventDefault(); setVar(true); }, {passive: false});
+                el.addEventListener('touchend', (e) => { e.preventDefault(); setVar(false); }, {passive: false});
+            };
+
+            bindTouch('btnLeft', v => isLeft = v);
+            bindTouch('btnRight', v => isRight = v);
+            bindTouch('btnGas', v => isGas = v);
+            bindTouch('btnBrake', v => isBrake = v);
+            bindTouch('btnReverse', v => isReverse = v);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (isGas) {
+                if (speed < maxSpeed) speed += 1.5;
+            } else if (isReverse) {
+                if (speed > maxReverseSpeed) speed -= 1.0;
+            } else if (isBrake) {
+                if (speed > 0) speed -= 3.0;
+                else if (speed < 0) speed += 3.0;
+            } else {
+                if (speed > 0) speed -= 0.6;
+                if (speed < 0) speed += 0.6;
+            }
+
+            document.getElementById('speedVal').innerText = Math.round(Math.abs(speed));
+
+            if (engineOsc && audioCtx) {
+                const engineFreq = 40 + (Math.abs(speed) / maxSpeed) * 220;
+                engineOsc.frequency.setTargetAtTime(engineFreq, audioCtx.currentTime, 0.1);
+            }
+
+            const dirMultiplier = speed < 0 ? -1 : 1;
+            if (isLeft && playerCar.x > -10) playerCar.x -= 0.12 * dirMultiplier;
+            if (isRight && playerCar.x < 10) playerCar.x += 0.12 * dirMultiplier;
+
+            // Movimiento relativo de la pista y competidores AI
+            playerCar.z -= (speed / 3.6) * 0.05;
+
+            for (let i = 1; i < 4; i++) {
+                cars[i].z -= (120 / 3.6) * 0.05;
+            }
+
+            // Seguir al auto principal con la cámara 3D
+            engine.camera.x = playerCar.x;
+            engine.camera.z = playerCar.z + 8;
+
+            engine.render(engine.trackBg);
+        }
+    </script>
+</body>
+</html>
