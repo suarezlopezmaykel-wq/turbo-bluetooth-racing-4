@@ -22,7 +22,6 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Pantalla completa e impedir suspensión de pantalla
         getWindow().setFlags(
             WindowManager.LayoutParams.FLAG_FULLSCREEN,
             WindowManager.LayoutParams.FLAG_FULLSCREEN
@@ -32,15 +31,13 @@ public class MainActivity extends AppCompatActivity {
         webView = new WebView(this);
         setContentView(webView);
 
-        // Aceleración por hardware para GPU PowerVR / Android 13 Go
         webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
-        settings.setDatabaseEnabled(true);
         
-        // Habilitar acceso estricto a archivos locales (Offline)
+        // Habilitar la lectura estricta de assets locales y scripts vinculados
         settings.setAllowFileAccess(true);
         settings.setAllowContentAccess(true);
         settings.setAllowFileAccessFromFileURLs(true);
@@ -48,10 +45,8 @@ public class MainActivity extends AppCompatActivity {
         
         settings.setMediaPlaybackRequiresUserGesture(false);
 
-        // Interfaz puente con código nativo
         webView.addJavascriptInterface(new WebAppInterface(), "AndroidBluetooth");
 
-        // Evitar que abra enlaces en navegadores externos
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
@@ -59,7 +54,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Cargar el archivo index.html embebido en la app
+        // Carga nativa del archivo empaquetado en la APK
         webView.loadUrl("file:///android_asset/index.html");
 
         requestBluetoothPermissions();
