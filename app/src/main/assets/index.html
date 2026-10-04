@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Turbo Racing 2D</title>
+    <title>Turbo Racing Professional</title>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; margin: 0; padding: 0; }
-        body { overflow: hidden; background: #111; font-family: sans-serif; }
+        body { overflow: hidden; background: #1a1a1a; font-family: sans-serif; }
         
         #menu { position: absolute; width: 100%; height: 100%; background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; color: white; }
         .card { background: rgba(255,255,255,0.1); padding: 20px; border-radius: 15px; width: 90%; max-width: 400px; text-align: center; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); }
@@ -21,7 +21,7 @@
         .controls { position: absolute; bottom: 15px; width: 100%; display: none; justify-content: space-between; padding: 0 20px; z-index: 10; }
         .btn-group { display: flex; gap: 12px; }
         .btn-vertical { display: flex; flex-direction: column; gap: 8px; }
-        .btn { width: 62px; height: 62px; background: rgba(255, 255, 255, 0.25); border: 2px solid rgba(255, 255, 255, 0.7); border-radius: 50%; color: white; font-size: 24px; display: flex; align-items: center; justify-content: center; touch-action: manipulation; }
+        .btn { width: 62px; height: 62px; background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(255, 255, 255, 0.6); border-radius: 50%; color: white; font-size: 24px; display: flex; align-items: center; justify-content: center; touch-action: manipulation; }
         .btn:active { background: rgba(255, 75, 43, 0.8); }
         .btn-rev { background: rgba(255, 165, 0, 0.4); font-size: 16px; font-weight: bold; }
 
@@ -32,14 +32,9 @@
 
     <div id="menu">
         <div class="card">
-            <h2 style="margin-bottom: 12px;">TURBO RACING 2D</h2>
+            <h2 style="margin-bottom: 12px;">TURBO RACING HD</h2>
             <label>Nombre Piloto:</label>
             <input type="text" id="playerName" value="Piloto 1" maxlength="12">
-            <label>Seleccionar Circuitos:</label>
-            <select id="trackSelect">
-                <option value="0">1. Circuito Oval</option>
-                <option value="1">2. Circuito Ocho (Curvas)</option>
-            </select>
             <button id="startBtn">CARRERA INDIVIDUAL</button>
             <button id="btBtn" class="btn-bt">MULTIJUGADOR BLUETOOTH</button>
         </div>
@@ -74,18 +69,38 @@
         resize();
 
         let speed = 0;
-        const maxSpeed = 160, maxReverseSpeed = -40;
+        const maxSpeed = 180, maxReverseSpeed = -50;
         let isGas = false, isBrake = false, isReverse = false, isLeft = false, isRight = false;
         let audioCtx, engineOsc, engineGain;
 
-        // Auto del Jugador
-        const player = { x: 300, y: 300, angle: 0, color: '#ff4b2b' };
+        // Puntos de la pista gigante (Circuito con Curvas y Chicanas)
+        const trackPoints = [
+            {x: 1000, y: 1000},
+            {x: 3500, y: 1000},
+            {x: 4500, y: 1800},
+            {x: 4200, y: 3500},
+            {x: 3000, y: 4200},
+            {x: 2000, y: 3200},
+            {x: 1200, y: 3800},
+            {x: 500,  y: 2500}
+        ];
 
-        // Autos IA (Computadora)
+        // Árboles en el paisaje
+        const trees = [];
+        for (let i = 0; i < 150; i++) {
+            trees.push({
+                x: Math.random() * 6000 - 500,
+                y: Math.random() * 6000 - 500,
+                size: 25 + Math.random() * 20
+            });
+        }
+
+        const player = { x: 1000, y: 900, angle: Math.PI / 2, color: '#ff2222' };
+
         const aiCars = [
-            { x: 280, y: 280, angle: 0, speed: 3.5, color: '#00ffff' },
-            { x: 320, y: 280, angle: 0, speed: 3.2, color: '#ffd700' },
-            { x: 300, y: 260, angle: 0, speed: 3.8, color: '#00ff7f' }
+            { progress: 0.02, speed: 3.2, color: '#00ffff', x: 0, y: 0, angle: 0 },
+            { progress: 0.05, speed: 3.5, color: '#ffcc00', x: 0, y: 0, angle: 0 },
+            { progress: 0.08, speed: 3.0, color: '#00ff66', x: 0, y: 0, angle: 0 }
         ];
 
         document.getElementById('startBtn').onclick = () => startGame(false);
@@ -141,33 +156,125 @@
             ctx.translate(x, y);
             ctx.rotate(angle);
 
-            // Carrocería
-            ctx.fillStyle = color;
-            ctx.fillRect(-12, -22, 24, 44);
+            // Sombra del auto
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.fillRect(-12, -20, 28, 48);
 
-            // Techo / Parabrisas
-            ctx.fillStyle = '#111';
-            ctx.fillRect(-8, -10, 16, 18);
+            // Carrocería principal
+            ctx.fillStyle = color;
+            ctx.fillRect(-14, -24, 28, 48);
+
+            // Parabrisas y detalles
+            ctx.fillStyle = '#151515';
+            ctx.fillRect(-10, -10, 20, 20);
+
+            // Luces delanteras
+            ctx.fillStyle = '#ffffa0';
+            ctx.fillRect(-12, -24, 6, 4);
+            ctx.fillRect(6, -24, 6, 4);
 
             // Ruedas
-            ctx.fillStyle = '#000';
-            ctx.fillRect(-15, -18, 4, 10);
-            ctx.fillRect(11, -18, 4, 10);
-            ctx.fillRect(-15, 8, 4, 10);
-            ctx.fillRect(11, 8, 4, 10);
+            ctx.fillStyle = '#0a0a0a';
+            ctx.fillRect(-17, -18, 5, 12);
+            ctx.fillRect(12, -18, 5, 12);
+            ctx.fillRect(-17, 8, 5, 12);
+            ctx.fillRect(12, 8, 5, 12);
 
             ctx.restore();
+        }
+
+        function drawTrack() {
+            // Bordillos / Pianos (Rojo y Blanco)
+            ctx.lineWidth = 260;
+            ctx.strokeStyle = '#e63946';
+            ctx.setLineDash([40, 40]);
+            ctx.beginPath();
+            ctx.moveTo(trackPoints[0].x, trackPoints[0].y);
+            for (let i = 1; i < trackPoints.length; i++) ctx.lineTo(trackPoints[i].x, trackPoints[i].y);
+            ctx.closePath();
+            ctx.stroke();
+
+            ctx.lineWidth = 260;
+            ctx.strokeStyle = '#f1faee';
+            ctx.lineDashOffset = 40;
+            ctx.stroke();
+
+            // Pista Principal (Asfalto Oscuro)
+            ctx.setLineDash([]);
+            ctx.lineWidth = 230;
+            ctx.strokeStyle = '#2b2d42';
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+
+            // Línea Central Discontinua (Amarilla)
+            ctx.lineWidth = 6;
+            ctx.strokeStyle = '#ffb703';
+            ctx.setLineDash([30, 30]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Línea de Meta (Estilo Cuadros)
+            ctx.save();
+            ctx.translate(trackPoints[0].x, trackPoints[0].y);
+            ctx.fillStyle = '#ffffff';
+            for (let i = -110; i < 110; i += 20) {
+                ctx.fillRect(i, -10, 10, 20);
+                ctx.fillRect(i + 10, 0, 10, 20);
+            }
+            ctx.restore();
+        }
+
+        function drawTrees() {
+            trees.forEach(t => {
+                ctx.save();
+                ctx.translate(t.x, t.y);
+
+                // Sombra del árbol
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                ctx.beginPath();
+                ctx.arc(5, 5, t.size, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Copa del árbol
+                ctx.fillStyle = '#2d6a4f';
+                ctx.beginPath();
+                ctx.arc(0, 0, t.size, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#40916c';
+                ctx.beginPath();
+                ctx.arc(-t.size * 0.2, -t.size * 0.2, t.size * 0.6, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            });
+        }
+
+        function getSplinePoint(t) {
+            const numPoints = trackPoints.length;
+            const index = Math.floor(t * numPoints) % numPoints;
+            const nextIndex = (index + 1) % numPoints;
+            const p1 = trackPoints[index];
+            const p2 = trackPoints[nextIndex];
+            const localT = (t * numPoints) % 1;
+
+            return {
+                x: p1.x + (p2.x - p1.x) * localT,
+                y: p1.y + (p2.y - p1.y) * localT,
+                angle: Math.atan2(p2.y - p1.y, p2.x - p1.x) + Math.PI / 2
+            };
         }
 
         function loop() {
             requestAnimationFrame(loop);
 
             // Física del Jugador
-            if (isGas && speed < maxSpeed) speed += 2.0;
-            else if (isReverse && speed > maxReverseSpeed) speed -= 1.2;
+            if (isGas && speed < maxSpeed) speed += 2.2;
+            else if (isReverse && speed > maxReverseSpeed) speed -= 1.5;
             else if (isBrake) {
-                if (speed > 0) speed -= 3.5;
-                else if (speed < 0) speed += 3.5;
+                if (speed > 0) speed -= 4.0;
+                else if (speed < 0) speed += 4.0;
             } else {
                 if (speed > 0) speed -= 0.8;
                 if (speed < 0) speed += 0.8;
@@ -176,52 +283,39 @@
             document.getElementById('speedVal').innerText = Math.round(Math.abs(speed));
 
             if (engineOsc && audioCtx) {
-                const engineFreq = 40 + (Math.abs(speed) / maxSpeed) * 200;
+                const engineFreq = 40 + (Math.abs(speed) / maxSpeed) * 220;
                 engineOsc.frequency.setTargetAtTime(engineFreq, audioCtx.currentTime, 0.1);
             }
 
-            const turnSensitivity = 0.04;
+            const turnSensitivity = 0.038;
             if (isLeft && Math.abs(speed) > 5) player.angle -= turnSensitivity * (speed > 0 ? 1 : -1);
             if (isRight && Math.abs(speed) > 5) player.angle += turnSensitivity * (speed > 0 ? 1 : -1);
 
-            player.x += Math.sin(player.angle) * (speed / 20);
-            player.y -= Math.cos(player.angle) * (speed / 20);
+            player.x += Math.sin(player.angle) * (speed / 15);
+            player.y -= Math.cos(player.angle) * (speed / 15);
 
-            // Renderizado (Cámara centrada en el jugador)
+            // Renderizado (Cámara enfocada)
             ctx.save();
-            ctx.fillStyle = '#2e8b57'; // Pasto del entorno
+            ctx.fillStyle = '#52b788'; // Cesped vibrante
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Centrar vista en el auto
+            // Seguimiento suave de la cámara
             ctx.translate(canvas.width / 2 - player.x, canvas.height / 2 - player.y);
 
-            // Dibujar Pista de Carreras con Curvas
-            ctx.lineWidth = 120;
-            ctx.strokeStyle = '#333';
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
+            drawTrack();
+            drawTrees();
 
-            ctx.beginPath();
-            ctx.arc(300, 300, 250, 0, Math.PI * 2); // Pista ovalada
-            ctx.stroke();
-
-            // Línea de Meta
-            ctx.lineWidth = 8;
-            ctx.strokeStyle = '#fff';
-            ctx.beginPath();
-            ctx.moveTo(300 - 60, 50);
-            ctx.lineTo(300 + 60, 50);
-            ctx.stroke();
-
-            // Dibujar Autos IA
+            // Actualizar y dibujar IA
             aiCars.forEach(ai => {
-                ai.angle += 0.015;
-                ai.x = 300 + Math.cos(ai.angle) * 250;
-                ai.y = 300 + Math.sin(ai.angle) * 250;
-                drawCar(ai.x, ai.y, ai.angle + Math.PI / 2, ai.color);
+                ai.progress = (ai.progress + 0.0003 * ai.speed) % 1;
+                const pos = getSplinePoint(ai.progress);
+                ai.x = pos.x;
+                ai.y = pos.y;
+                ai.angle = pos.angle;
+                drawCar(ai.x, ai.y, ai.angle, ai.color);
             });
 
-            // Dibujar Jugador
+            // Dibujar Coche del Jugador
             drawCar(player.x, player.y, player.angle, player.color);
 
             ctx.restore();
