@@ -3,17 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Turbo Racing Pro 2D Multi</title>
+    <title>Turbo Racing Pro - Circuitos</title>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; margin: 0; padding: 0; }
         body { overflow: hidden; background: #1a1a1a; font-family: sans-serif; }
         
-        #menu { position: absolute; width: 100%; height: 100%; background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; color: white; }
-        .card { background: rgba(255,255,255,0.1); padding: 20px; border-radius: 15px; width: 90%; max-width: 400px; text-align: center; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); }
+        .overlay-screen { position: absolute; width: 100%; height: 100%; background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; color: white; }
+        .card { background: rgba(255,255,255,0.1); padding: 25px; border-radius: 15px; width: 90%; max-width: 420px; text-align: center; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); }
         input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: none; font-size: 15px; }
-        input { background: rgba(255,255,255,0.9); }
-        button { background: #ff4b2b; color: white; font-weight: bold; font-size: 16px; cursor: pointer; }
+        input { background: rgba(255,255,255,0.9); color: #000; }
+        button { background: #ff4b2b; color: white; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.2s; }
+        button:active { transform: scale(0.98); }
         .btn-bt { background: #0088ff; }
+        .btn-track { background: #2ec4b6; margin-top: 10px; }
 
         #hud { position: absolute; top: 10px; left: 15px; color: white; font-size: 16px; font-weight: bold; text-shadow: 2px 2px 4px #000; z-index: 10; display: none; }
         #speedometer { position: absolute; top: 10px; right: 15px; color: #00ffff; font-size: 22px; font-weight: bold; text-shadow: 2px 2px 4px #000; z-index: 10; display: none; }
@@ -36,13 +38,23 @@
 </head>
 <body>
 
-    <div id="menu">
+    <!-- Paso 1: Selección de Modo -->
+    <div id="modeMenu" class="overlay-screen">
         <div class="card">
-            <h2 style="margin-bottom: 12px;">TURBO RACING VERTICAL</h2>
-            <label>Nombre Piloto:</label>
+            <h2 style="margin-bottom: 12px;">TURBO RACING PRO</h2>
+            <label>Nombre del Piloto:</label>
             <input type="text" id="playerName" value="Piloto 1" maxlength="12">
-            <button id="startBtn">INICIAR CARRERA</button>
-            <button id="btBtn" class="btn-bt">MULTIJUGADOR BLUETOOTH</button>
+            <button id="btnSingleMode">VS COMPUTADORA</button>
+            <button id="btnBtMode" class="btn-bt">MULTIJUGADOR BLUETOOTH</button>
+        </div>
+    </div>
+
+    <!-- Paso 2: Selección de Pista -->
+    <div id="trackMenu" class="overlay-screen" style="display: none;">
+        <div class="card">
+            <h2 style="margin-bottom: 15px;">SELECCIONAR PISTA</h2>
+            <button id="btnTrackForest" class="btn-track" style="background: #2a9d8f;">🌲 BOSQUE ENCANTADO</button>
+            <button id="btnTrackDesert" class="btn-track" style="background: #e76f51;">🏜️ DESIERTO ROJO</button>
         </div>
     </div>
 
@@ -90,20 +102,30 @@
         let raceStarted = false, countdownValue = 5;
         let finishedCars = [];
         let isMultiplayerBT = false;
+        let selectedTrack = 'forest';
 
-        // Dimensiones de 4 vías iguales
-        const LANE_WIDTH = 90;
-        const TRACK_WIDTH = LANE_WIDTH * 4; 
+        const LANE_WIDTH = 80;
+        const TRACK_WIDTH = LANE_WIDTH * 4;
         const ROAD_X = 2000;
-
-        // Tramo Vertical
         const START_Y = 5000;
-        const GOAL_Y = -5000;
+        const GOAL_Y = -12000;
 
-        // Zona de Parqueo tras la meta
+        // Zona de Parqueo en la meta
         const parkingZone = { x: ROAD_X + TRACK_WIDTH / 2 + 180, y: GOAL_Y - 400 };
 
-        // Autos alineados en los 4 carriles detrás de la línea de salida
+        // Barreras que bloquean exactamente 2 vías
+        const obstacles = [
+            { y: 3500, lanes: [0, 1] },
+            { y: 1500, lanes: [2, 3] },
+            { y: -500, lanes: [1, 2] },
+            { y: -2500, lanes: [0, 1] },
+            { y: -4500, lanes: [2, 3] },
+            { y: -6500, lanes: [1, 2] },
+            { y: -8500, lanes: [0, 1] },
+            { y: -10500, lanes: [2, 3] }
+        ];
+
+        // Autos participantes
         const cars = [
             { id: 0, name: "Piloto 1", x: ROAD_X - 1.5 * LANE_WIDTH, y: START_Y + 100, angle: 0, speed: 0, color: '#ff2222', isAI: false, finished: false },
             { id: 1, name: "Jugador 2", x: ROAD_X - 0.5 * LANE_WIDTH, y: START_Y + 100, angle: 0, speed: 0, color: '#00ffff', isAI: true,  finished: false },
@@ -113,18 +135,28 @@
 
         const player = cars[0];
 
-        // Arboles y vegetación
-        const trees = [];
-        for (let i = 0; i < 250; i++) {
-            trees.push({
-                x: (Math.random() > 0.5 ? ROAD_X - TRACK_WIDTH/2 - 150 - Math.random()*500 : ROAD_X + TRACK_WIDTH/2 + 150 + Math.random()*500),
-                y: START_Y + 500 - Math.random() * (START_Y - GOAL_Y + 2000),
-                size: 25 + Math.random() * 20
+        // Elementos decorativos del mapa
+        const scenery = [];
+        for (let i = 0; i < 350; i++) {
+            scenery.push({
+                x: (Math.random() > 0.5 ? ROAD_X - TRACK_WIDTH/2 - 150 - Math.random()*600 : ROAD_X + TRACK_WIDTH/2 + 150 + Math.random()*600),
+                y: START_Y + 800 - Math.random() * (START_Y - GOAL_Y + 2500),
+                size: 20 + Math.random() * 25,
+                type: Math.random() > 0.5 ? 1 : 2
             });
         }
 
-        document.getElementById('startBtn').onclick = () => startGame(false);
-        document.getElementById('btBtn').onclick = () => startGame(true);
+        document.getElementById('btnSingleMode').onclick = () => selectMode(false);
+        document.getElementById('btnBtMode').onclick = () => selectMode(true);
+
+        function selectMode(isBt) {
+            isMultiplayerBT = isBt;
+            document.getElementById('modeMenu').style.display = 'none';
+            document.getElementById('trackMenu').style.display = 'flex';
+        }
+
+        document.getElementById('btnTrackForest').onclick = () => startRace('forest');
+        document.getElementById('btnTrackDesert').onclick = () => startRace('desert');
 
         function initAudio() {
             try {
@@ -149,16 +181,17 @@
             }
         }
 
-        function startGame(isBt) {
-            isMultiplayerBT = isBt;
+        function startRace(track) {
+            selectedTrack = track;
             player.name = document.getElementById('playerName').value || "Piloto 1";
-            document.getElementById('hudName').innerText = player.name + (isBt ? " [BT]" : "");
-            document.getElementById('menu').style.display = 'none';
+            document.getElementById('hudName').innerText = player.name + (isMultiplayerBT ? " [BT]" : "");
+            
+            document.getElementById('trackMenu').style.display = 'none';
             document.getElementById('hud').style.display = 'block';
             document.getElementById('speedometer').style.display = 'block';
             document.getElementById('controls').style.display = 'flex';
 
-            if (isBt && window.AndroidBluetooth) {
+            if (isMultiplayerBT && window.AndroidBluetooth) {
                 window.AndroidBluetooth.connectBluetooth();
             }
 
@@ -199,7 +232,7 @@
             bind('btnReverse', v => isReverse = v);
         }
 
-        function checkFenceCollision(car) {
+        function checkCollisions(car) {
             const leftBoundary = ROAD_X - TRACK_WIDTH / 2 + 15;
             const rightBoundary = ROAD_X + TRACK_WIDTH / 2 - 15;
 
@@ -210,6 +243,21 @@
                 car.x = rightBoundary;
                 if (!car.isAI || car === player) speed *= 0.4;
             }
+
+            // Colisiones con barreras
+            obstacles.forEach(obs => {
+                if (Math.abs(car.y - obs.y) < 30) {
+                    const minLane = obs.lanes[0];
+                    const maxLane = obs.lanes[1];
+                    const obsMinX = ROAD_X - TRACK_WIDTH/2 + minLane * LANE_WIDTH;
+                    const obsMaxX = ROAD_X - TRACK_WIDTH/2 + (maxLane + 1) * LANE_WIDTH;
+
+                    if (car.x >= obsMinX && car.x <= obsMaxX) {
+                        car.y += (car.y > obs.y ? 12 : -12);
+                        if (!car.isAI || car === player) speed *= -0.3;
+                    }
+                }
+            });
         }
 
         function drawCar(c) {
@@ -236,11 +284,14 @@
         }
 
         function drawTrack() {
-            ctx.fillStyle = '#c1121f';
+            const trackColor = selectedTrack === 'forest' ? '#2b2d42' : '#3d2612';
+            const curbColor = selectedTrack === 'forest' ? '#c1121f' : '#e76f51';
+
+            ctx.fillStyle = curbColor;
             ctx.fillRect(ROAD_X - TRACK_WIDTH/2 - 15, GOAL_Y - 800, 15, START_Y - GOAL_Y + 1600);
             ctx.fillRect(ROAD_X + TRACK_WIDTH/2, GOAL_Y - 800, 15, START_Y - GOAL_Y + 1600);
 
-            ctx.fillStyle = '#2b2d42';
+            ctx.fillStyle = trackColor;
             ctx.fillRect(ROAD_X - TRACK_WIDTH/2, GOAL_Y - 800, TRACK_WIDTH, START_Y - GOAL_Y + 1600);
 
             ctx.strokeStyle = '#ffffff';
@@ -267,6 +318,22 @@
             ctx.font = 'bold 40px sans-serif';
             ctx.fillText("=== FINISH / GOAL ===", ROAD_X, GOAL_Y - 40);
 
+            // Renderizar barreras
+            obstacles.forEach(obs => {
+                const minLane = obs.lanes[0];
+                const obsX = ROAD_X - TRACK_WIDTH/2 + minLane * LANE_WIDTH;
+                const obsWidth = LANE_WIDTH * 2;
+
+                ctx.fillStyle = '#ff9f1c';
+                ctx.fillRect(obsX, obs.y - 15, obsWidth, 30);
+
+                ctx.fillStyle = '#000';
+                for (let b = 0; b < obsWidth; b += 30) {
+                    ctx.fillRect(obsX + b, obs.y - 15, 15, 30);
+                }
+            });
+
+            // Área de Parqueo
             ctx.fillStyle = '#333';
             ctx.fillRect(parkingZone.x - 80, parkingZone.y - 120, 160, 240);
             ctx.strokeStyle = '#ffb703';
@@ -278,14 +345,19 @@
         }
 
         function drawEnvironment() {
-            trees.forEach(t => {
-                if (Math.abs(t.y - player.y) < canvas.height * 1.2) {
+            scenery.forEach(s => {
+                if (Math.abs(s.y - player.y) < canvas.height * 1.2) {
                     ctx.save();
-                    ctx.translate(t.x, t.y);
-                    ctx.fillStyle = '#2d6a4f';
-                    ctx.beginPath();
-                    ctx.arc(0, 0, t.size, 0, Math.PI * 2);
-                    ctx.fill();
+                    ctx.translate(s.x, s.y);
+                    if (selectedTrack === 'forest') {
+                        ctx.fillStyle = s.type === 1 ? '#2d6a4f' : '#1b4332';
+                        ctx.beginPath();
+                        ctx.arc(0, 0, s.size, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else {
+                        ctx.fillStyle = s.type === 1 ? '#2a9d8f' : '#e9c46a';
+                        ctx.fillRect(-s.size/4, -s.size, s.size/2, s.size * 1.5);
+                    }
                     ctx.restore();
                 }
             });
@@ -353,7 +425,7 @@
                 player.x += Math.sin(player.angle) * (speed / 15);
                 player.y -= Math.cos(player.angle) * (speed / 15);
 
-                checkFenceCollision(player);
+                checkCollisions(player);
                 sendBluetoothPosition();
 
                 if (player.y <= GOAL_Y) {
@@ -370,7 +442,7 @@
             }
 
             ctx.save();
-            ctx.fillStyle = '#52b788';
+            ctx.fillStyle = selectedTrack === 'forest' ? '#52b788' : '#f4a261';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             ctx.translate(canvas.width / 2 - player.x, canvas.height / 2 - player.y);
@@ -381,9 +453,9 @@
             cars.forEach((c) => {
                 if (c !== player && raceStarted && !c.finished) {
                     if (!isMultiplayerBT && c.isAI) {
-                        c.y -= 10.5;
+                        c.y -= 10.2;
                     }
-                    checkFenceCollision(c);
+                    checkCollisions(c);
 
                     if (c.y <= GOAL_Y) {
                         c.finished = true;
