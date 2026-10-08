@@ -83,7 +83,17 @@ public class MainActivity extends AppCompatActivity {
         public String getDeviceName() {
             return Build.MODEL;
         }
+        @JavascriptInterface
+public void connectBluetooth() {
+    try {
+        Intent intent = new Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS);
+        MainActivity.this.startActivity(intent);
+    } catch (Exception e) {
+        Toast.makeText(MainActivity.this,
+                "No se pudo abrir Bluetooth",
+                Toast.LENGTH_SHORT).show();
     }
+}
 
     @Override
     public void onBackPressed() {
