@@ -196,11 +196,30 @@
         document.getElementById('btnSingleMode').onclick = () => selectMode(false);
         document.getElementById('btnBtMode').onclick = () => selectMode(true);
 
+document.getElementById('btnConnectBluetooth').onclick = () => {
+    if (window.AndroidBluetooth && window.AndroidBluetooth.connectBluetooth) {
+        window.AndroidBluetooth.connectBluetooth();
+    } else {
+        alert('No se encuentra disponible la conexión Bluetooth.');
+    }
+};
+
+document.getElementById('btnContinueBluetooth').onclick = () => {
+    document.getElementById('bluetoothMenu').style.display = 'none';
+    document.getElementById('trackMenu').style.display = 'flex';
+};
+
         function selectMode(isBt) {
-            isMultiplayerBT = isBt;
-            document.getElementById('modeMenu').style.display = 'none';
-            document.getElementById('trackMenu').style.display = 'flex';
-        }
+    isMultiplayerBT = isBt;
+
+    document.getElementById('modeMenu').style.display = 'none';
+
+    if (isBt) {
+        document.getElementById('bluetoothMenu').style.display = 'flex';
+    } else {
+        document.getElementById('trackMenu').style.display = 'flex';
+    }
+}
 
         document.getElementById('btnTrackForest').onclick = () => startRace('forest');
         document.getElementById('btnTrackDesert').onclick = () => startRace('desert');
