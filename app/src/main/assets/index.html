@@ -165,3 +165,52 @@
                     return;
                 }
             }
+            alert('Bluetooth no está listo todavía.');
+        };
+        function selectMode(isBt) {
+            isMultiplayerBT = isBt;
+            document.getElementById('modeMenu').style.display = 'none';
+            if (isBt) {
+                document.getElementById('bluetoothMenu').style.display = 'flex';
+            } else {
+                document.getElementById('trackMenu').style.display = 'flex';
+            }
+        }
+        document.getElementById('btnTrackForest').onclick = () => startRace('forest');
+        document.getElementById('btnTrackDesert').onclick = () => startRace('desert');
+        document.getElementById('btnRestartRace').onclick = () => resetGame(false);
+        document.getElementById('btnSelectTrack').onclick = () => resetGame(true);
+        document.getElementById('btnExitGame').onclick = () => {
+            if (window.AndroidBluetooth && window.AndroidBluetooth.closeApp) {
+                window.AndroidBluetooth.closeApp();
+            } else {
+                location.reload();
+            }
+        };
+        function resetGame(toTrackSelect) {
+            document.getElementById('resultsModal').style.display = 'none';
+            finishedCars = [];
+            raceStarted = false;
+            countdownValue = 5;
+            speed = 0;
+            parkingSlots.forEach(s => s.occupied = false);
+            cars.forEach((c, idx) => {
+                c.x = ROAD_X + (idx - 1.5) * LANE_WIDTH;
+                c.y = START_Y + 100;
+                c.angle = 0;
+                c.speed = 0;
+                c.finished = false;
+                c.jumping = false;
+                c.jumpZ = 0;
+                c.aiState = 'FORWARD';
+                c.targetSlot = null;
+            });
+            if (toTrackSelect) {
+                document.getElementById('hud').style.display = 'none';
+                document.getElementById('speedometer').style.display = 'none';
+                document.getElementById('controls').style.display = 'none';
+                document.getElementById('trackMenu').style.display = 'flex';
+            } else {
+                startCountdown();
+            }
+        }
