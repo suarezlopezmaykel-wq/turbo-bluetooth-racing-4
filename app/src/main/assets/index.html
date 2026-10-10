@@ -60,3 +60,52 @@
             <button id="btnTrackDesert" class="btn-track" style="background: #e76f51;">🏜️ DESIERTO ROJO</button>
         </div>
     </div>
+    <div id="hud">Piloto: <span id="hudName"></span></div>
+    <div id="speedometer"><span id="speedVal">0</span> km/h</div>
+    <div id="countdownOverlay">5</div>
+    <div id="resultsModal">
+        <div class="results-card">
+            <h2>POSICIONES FINALES</h2>
+            <ol id="positionsList" class="results-list"></ol>
+            <button id="btnRestartRace">VOLVER A JUGAR</button>
+            <button id="btnSelectTrack">CAMBIAR DE PISTA</button>
+            <button id="btnExitGame" class="btn-exit">SALIR DEL JUEGO</button>
+        </div>
+    </div>
+    <div class="controls" id="controls">
+        <div class="btn-group">
+            <div class="btn" id="btnLeft">◀</div>
+            <div class="btn" id="btnRight">▶</div>
+        </div>
+        <div class="btn-vertical">
+            <div class="btn" id="btnGas">▲</div>
+            <div class="btn" id="btnBrake">▼</div>
+            <div class="btn btn-rev" id="btnReverse">R</div>
+        </div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resize);
+        resize();
+        let speed = 0;
+        const maxSpeed = 190, maxReverseSpeed = -50;
+        let isGas = false, isBrake = false, isReverse = false, isLeft = false, isRight = false;
+        let audioCtx, engineOsc, engineGain;
+        let raceStarted = false, countdownValue = 5;
+        let finishedCars = [];
+        let isMultiplayerBT = false;
+        let selectedTrack = 'forest';
+        const LANE_WIDTH = 80;
+        const TRACK_WIDTH = LANE_WIDTH * 4;
+        const ROAD_X = 2000;
+        const START_Y = 5000;
+        const GOAL_Y = -28000;
+        const PARKING_Y = GOAL_Y - 1800;
+        function getCurveOffset(y) {
+            const bend = Math.sin(y * 0.00028) * 420;
+            const secondary = Math.sin(y * 0.00012 + 2.4) * 130;
+            return bend + secondary;
+        }
