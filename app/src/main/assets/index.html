@@ -109,3 +109,59 @@
             const secondary = Math.sin(y * 0.00012 + 2.4) * 130;
             return bend + secondary;
         }
+        function getTrackCenterAtY(y) { return ROAD_X + getCurveOffset(y); }
+        const parkingSlots = [
+            { x: ROAD_X - 160, y: PARKING_Y - 90, occupied: false },
+            { x: ROAD_X + 160, y: PARKING_Y - 90, occupied: false },
+            { x: ROAD_X - 160, y: PARKING_Y + 90, occupied: false },
+            { x: ROAD_X + 160, y: PARKING_Y + 90, occupied: false }
+        ];
+        const obstacles = [
+            { y: 2000, lanes: [0, 1], rampLane: 0 },
+            { y: -2000, lanes: [2, 3], rampLane: 3 },
+            { y: -6000, lanes: [1, 2], rampLane: 1 },
+            { y: -10000, lanes: [0, 1], rampLane: 1 },
+            { y: -14000, lanes: [2, 3], rampLane: 2 },
+            { y: -18000, lanes: [1, 2], rampLane: 2 },
+            { y: -22000, lanes: [0, 1], rampLane: 0 },
+            { y: -25000, lanes: [2, 3], rampLane: 3 }
+        ];
+        const cars = [
+            { id: 0, name: "Piloto 1", x: ROAD_X - 1.5 * LANE_WIDTH, y: START_Y + 100, angle: 0, speed: 0, color: '#ff2222', isAI: false, finished: false, jumping: false, jumpZ: 0, aiState: 'FORWARD', targetSlot: null },
+            { id: 1, name: "Jugador 2", x: ROAD_X - 0.5 * LANE_WIDTH, y: START_Y + 100, angle: 0, speed: 0, color: '#00ffff', isAI: true, finished: false, jumping: false, jumpZ: 0, aiState: 'FORWARD', targetSlot: null },
+            { id: 2, name: "Jugador 3", x: ROAD_X + 0.5 * LANE_WIDTH, y: START_Y + 100, angle: 0, speed: 0, color: '#ffcc00', isAI: true, finished: false, jumping: false, jumpZ: 0, aiState: 'FORWARD', targetSlot: null },
+            { id: 3, name: "Jugador 4", x: ROAD_X + 1.5 * LANE_WIDTH, y: START_Y + 100, angle: 0, speed: 0, color: '#00ff66', isAI: true, finished: false, jumping: false, jumpZ: 0, aiState: 'FORWARD', targetSlot: null }
+        ];
+        const player = cars[0];
+        const scenery = [];
+        for (let i = 0; i < 600; i++) {
+            const side = Math.random() > 0.5 ? 1 : -1;
+            const sy = START_Y + 1000 - Math.random() * (START_Y - GOAL_Y + 4000);
+            if (sy < PARKING_Y + 500 && sy > PARKING_Y - 500) continue;
+            const offset = getCurveOffset(sy);
+            const sx = ROAD_X + offset + (side * (TRACK_WIDTH / 2 + 180 + Math.random() * 800));
+            const randType = Math.random();
+            let type = 'tree';
+            if (randType < 0.4) type = 'tree';
+            else if (randType < 0.7) type = 'house';
+            else type = 'crowd';
+            scenery.push({ x: sx, y: sy, size: 22 + Math.random() * 25, type });
+        }
+        document.getElementById('btnSingleMode').onclick = () => selectMode(false);
+        document.getElementById('btnBtMode').onclick = () => selectMode(true);
+        document.getElementById('btnConnectBluetooth').onclick = () => {
+            if (window.AndroidBluetooth && window.AndroidBluetooth.connectBluetooth) {
+                window.AndroidBluetooth.connectBluetooth();
+            } else {
+                alert('No se encuentra disponible la conexión Bluetooth.');
+            }
+        };
+        document.getElementById('btnContinueBluetooth').onclick = () => {
+            if (window.AndroidBluetooth && window.AndroidBluetooth.isBluetoothReady) {
+                const ok = window.AndroidBluetooth.isBluetoothReady();
+                if (ok !== false) {
+                    document.getElementById('bluetoothMenu').style.display = 'none';
+                    document.getElementById('trackMenu').style.display = 'flex';
+                    return;
+                }
+            }
